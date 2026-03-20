@@ -1,6 +1,6 @@
 blueprint:
-  name: Motion-activated Light
-  description: Turn on a light when motion is detected.
+  name: Motion-activated Light Advanced
+  description: Turn on a light under various conditions when motion is detected.
   domain: automation
   source_url: https://github.com/home-assistant/core/blob/dev/homeassistant/components/automation/blueprints/motion_light.yaml
   author: Home Assistant
