@@ -48,7 +48,7 @@ blueprint:
       selector:
         entity:
           domain:
-          - binary_sensor
+          - input_boolean
           multiple: false
     light_target_2:
       name: Light alternative
