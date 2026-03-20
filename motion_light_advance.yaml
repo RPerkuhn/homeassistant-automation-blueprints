@@ -16,12 +16,14 @@ blueprint:
               domain: binary_sensor
     light_target_1:
       name: Light standard
+      description: Light to switch on in normal condition
       selector:
         target:
           entity:
             domain: light
     light_target_2:
-      name: Light standard
+      name: Light alternative
+      description: Light to switch on in alternative condition
       selector:
         target:
           entity:
