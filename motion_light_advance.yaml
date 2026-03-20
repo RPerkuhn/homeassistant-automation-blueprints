@@ -14,6 +14,26 @@ blueprint:
               domain: binary_sensor
             - device_class: motion
               domain: binary_sensor
+    illumination_entity:
+      name: Illumination Sensor
+      selector:
+        entity:
+          filter:
+            - device_class: occupancy
+              domain: binary_sensor
+            - device_class: motion
+              domain: binary_sensor
+    minimum_illumination:
+      name: Minimum illumination
+      description: Set minimum illumination when lights should turn on.
+      default: 3
+      selector:
+        number:
+          min: 1.0
+          max: 100.0
+          unit_of_measurement: Lux
+          mode: slider
+          step: 1.0
     light_target_1:
       name: Light standard
       description: Light to switch on in normal condition
