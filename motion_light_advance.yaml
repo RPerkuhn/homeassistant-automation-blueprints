@@ -14,25 +14,26 @@ blueprint:
               domain: binary_sensor
             - device_class: motion
               domain: binary_sensor
-    illumination_entity:
-      name: Illumination Sensor
+    lux_entity:
+      name: Illuminance Sensor
       selector:
         entity:
-          multiple: false
-          filter:
-            - device_class: illuminance
-              domain: sensor          
-    minimum_illumination:
-      name: Minimum illumination
-      description: Set minimum illumination when lights should turn on.
-      default: 3
+          domain:
+            - sensor
+          device_class:
+            - illuminance
+    lux_level:
+      name: Illuminance level
+      description:
+        If lux is below this value and motion is detected, the light will
+        turn on.
+      default: 100
       selector:
         number:
-          min: 1.0
-          max: 100.0
-          unit_of_measurement: Lux
-          mode: slider
+          min: 0.0
+          max: 1000.0
           step: 1.0
+          mode: slider
     light_target_1:
       name: Light standard
       description: Light to switch on in normal condition
@@ -40,6 +41,15 @@ blueprint:
         target:
           entity:
             domain: light
+    nighttime_helper:
+      name: Night silence helper
+      description: Should it be considered that night silence occurs? Create a binary_sensor
+        helper and automate it to set/unset.
+      selector:
+        entity:
+          domain:
+          - binary_sensor
+          multiple: false
     light_target_2:
       name: Light alternative
       description: Light to switch on in alternative condition
