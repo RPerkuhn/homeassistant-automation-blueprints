@@ -18,11 +18,10 @@ blueprint:
       name: Illumination Sensor
       selector:
         entity:
+          multiple: false
           filter:
-            - device_class: occupancy
-              domain: binary_sensor
-            - device_class: motion
-              domain: binary_sensor
+            - device_class: illuminance
+              domain: sensor          
     minimum_illumination:
       name: Minimum illumination
       description: Set minimum illumination when lights should turn on.
