@@ -1,0 +1,367 @@
+blueprint:
+  name: Intelligente Rollosteuerung
+  description: >
+    Automatische Rollosteuerung basierend auf Sonnenstand, Innen-/Außentemperatur,
+    Sonnenschutz, Fensterstatus, Terrassentürstatus, Weihnachtsbeleuchtung und
+    manuellem Override.
+  domain: automation
+  input:
+    cover_entity:
+      name: Rolladen
+      description: Der zu steuernde Rolladen.
+      selector:
+        entity:
+          domain: cover
+
+    # --- Sensoren ---
+    outdoor_temp_sensor:
+      name: Außentemperatursensor
+      description: Sensor für die aktuelle Außentemperatur.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    indoor_temp_sensor:
+      name: Innentemperatursensor
+      description: Sensor für die aktuelle Raumtemperatur.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    window_sensor:
+      name: Fenstersensor
+      description: Kontaktsensor am Fenster. Verhindert vollständiges Schließen bei geöffnetem Fenster.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: window
+
+    door_sensor:
+      name: Terrassentürsensor
+      description: Kontaktsensor an der Terrassentür. Verhindert Schließen bei geöffneter Tür (Aussperrschutz).
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: door
+
+    # --- Sonnenschutz ---
+    sun_elevation_threshold:
+      name: Sonnenelevation Schwellwert (°)
+      description: Ab welchem Sonnenstand (in Grad über dem Horizont) der Sonnenschutz aktiv wird.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 90
+          unit_of_measurement: "°"
+
+    sun_azimuth_start:
+      name: Sonnenschutz Azimut Start (°)
+      description: Ab welchem Azimut-Winkel die Sonne das Fenster trifft (z. B. 90° = Osten).
+      default: 90
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: "°"
+
+    sun_azimuth_end:
+      name: Sonnenschutz Azimut Ende (°)
+      description: Bis zu welchem Azimut-Winkel die Sonne das Fenster trifft (z. B. 270° = Westen).
+      default: 270
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: "°"
+
+    sunscreen_position:
+      name: Sonnenschutz Position (%)
+      description: Auf welche Position (0–100 %) der Rolladen bei aktivem Sonnenschutz gefahren wird.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+    # --- Temperatur ---
+    heat_protection_indoor_temp:
+      name: Hitzeschutz Innentemperatur (°C)
+      description: >
+        Ab dieser Raumtemperatur wird der Sonnenschutz auch im Frühjahr/Herbst aktiviert
+        (Überhitzungsschutz).
+      default: 24
+      selector:
+        number:
+          min: 15
+          max: 35
+          unit_of_measurement: "°C"
+
+    solar_gain_indoor_temp:
+      name: Solargewinn Innentemperatur (°C)
+      description: >
+        Liegt die Raumtemperatur unter diesem Wert, bleibt der Rolladen bei Sonnenschein
+        offen, um passive Solarwärme zu nutzen (Herbst/Winter/Frühling).
+      default: 20
+      selector:
+        number:
+          min: 10
+          max: 30
+          unit_of_measurement: "°C"
+
+    # --- Zeitsteuerung ---
+    sunrise_offset:
+      name: Sonnenaufgang Offset (Minuten)
+      description: >
+        Versatz zum Sonnenaufgang in Minuten. Positive Werte = später öffnen,
+        negative Werte = früher öffnen.
+      default: 30
+      selector:
+        number:
+          min: -120
+          max: 120
+          unit_of_measurement: "min"
+
+    sunset_offset:
+      name: Sonnenuntergang Offset (Minuten)
+      description: >
+        Versatz zum Sonnenuntergang in Minuten. Positive Werte = später schließen,
+        negative Werte = früher schließen.
+      default: 0
+      selector:
+        number:
+          min: -120
+          max: 120
+          unit_of_measurement: "min"
+
+    # --- Weihnachtsbeleuchtung ---
+    christmas_light_entity:
+      name: Weihnachtsbeleuchtung (optional)
+      description: >
+        Wenn diese Entität eingeschaltet ist, wird das abendliche Schließen um den
+        unten konfigurierten Wert verzögert.
+      default: {}
+      selector:
+        entity:
+          domain: light
+
+    christmas_delay:
+      name: Weihnachtsbeleuchtung Verzögerung (Minuten)
+      description: Um wie viele Minuten das Schließen bei aktiver Weihnachtsbeleuchtung verzögert wird.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 240
+          unit_of_measurement: "min"
+
+    # --- Manueller Override ---
+    override_duration:
+      name: Override-Dauer (Minuten)
+      description: >
+        Nach manueller Bedienung des Rolladens wird die Automatik für diese Dauer pausiert.
+      default: 120
+      selector:
+        number:
+          min: 10
+          max: 480
+          unit_of_measurement: "min"
+
+    # --- Lüftungsposition ---
+    window_open_position:
+      name: Lüftungsposition bei geöffnetem Fenster (%)
+      description: >
+        Auf diese Position fährt der Rolladen maximal, wenn das Fenster geöffnet ist
+        (verhindert Einklemmen). 100 % = vollständig offen.
+      default: 80
+      selector:
+        number:
+          min: 10
+          max: 100
+          unit_of_measurement: "%"
+
+variables:
+  cover: !input cover_entity
+  outdoor_temp: !input outdoor_temp_sensor
+  indoor_temp: !input indoor_temp_sensor
+  window: !input window_sensor
+  door: !input door_sensor
+  sun_elev_thresh: !input sun_elevation_threshold
+  sun_az_start: !input sun_azimuth_start
+  sun_az_end: !input sun_azimuth_end
+  sunscreen_pos: !input sunscreen_position
+  heat_indoor: !input heat_protection_indoor_temp
+  solar_gain_indoor: !input solar_gain_indoor_temp
+  sunrise_off: !input sunrise_offset
+  sunset_off: !input sunset_offset
+  xmas_entity: !input christmas_light_entity
+  xmas_delay: !input christmas_delay
+  override_dur: !input override_duration
+  window_pos: !input window_open_position
+
+trigger:
+  # Sonnenaufgang
+  - platform: sun
+    event: sunrise
+    offset: "{{ sunrise_off | int }}:00"
+    id: sunrise
+
+  # Sonnenuntergang
+  - platform: sun
+    event: sunset
+    offset: "{{ sunset_off | int }}:00"
+    id: sunset
+
+  # Sonnenschutz – alle 5 Minuten prüfen
+  - platform: time_pattern
+    minutes: "/5"
+    id: sun_check
+
+  # Fensterstatus geändert
+  - platform: state
+    entity_id: !input window_sensor
+    id: window_change
+
+  # Terrassentürstatus geändert
+  - platform: state
+    entity_id: !input door_sensor
+    id: door_change
+
+  # Manueller Override erkennen
+  - platform: state
+    entity_id: !input cover_entity
+    id: manual_override
+
+condition: []
+
+action:
+  - choose:
+
+      # ── Sonnenaufgang: Öffnen ──────────────────────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: sunrise
+          - condition: state
+            entity_id: !input door_sensor
+            state: "off"  # Tür geschlossen
+        sequence:
+          - service: cover.open_cover
+            target:
+              entity_id: !input cover_entity
+
+      # ── Sonnenuntergang: Schließen ─────────────────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: sunset
+          - condition: state
+            entity_id: !input door_sensor
+            state: "off"  # Aussperrschutz
+        sequence:
+          - choose:
+              # Weihnachtsbeleuchtung aktiv → Verzögerung
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ xmas_entity != {} and is_state(xmas_entity, 'on') }}
+                sequence:
+                  - delay:
+                      minutes: "{{ xmas_delay | int }}"
+                  - choose:
+                      - conditions:
+                          - condition: state
+                            entity_id: !input door_sensor
+                            state: "off"
+                        sequence:
+                          - service: cover.close_cover
+                            target:
+                              entity_id: !input cover_entity
+            default:
+              - service: cover.close_cover
+                target:
+                  entity_id: !input cover_entity
+
+      # ── Sonnenschutz alle 5 Minuten prüfen ────────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: sun_check
+          - condition: state
+            entity_id: !input door_sensor
+            state: "off"
+          - condition: template
+            value_template: >
+              {{ state_attr('sun.sun', 'elevation') | float(0) >= sun_elev_thresh | float }}
+          - condition: template
+            value_template: >
+              {% set az = state_attr('sun.sun', 'azimuth') | float(0) %}
+              {{ az >= sun_az_start | float and az <= sun_az_end | float }}
+        sequence:
+          - choose:
+              # Solargewinn: Raumtemperatur kalt → Rollo offen lassen
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ states(indoor_temp) | float(20) < solar_gain_indoor | float }}
+                sequence:
+                  - service: cover.open_cover
+                    target:
+                      entity_id: !input cover_entity
+
+              # Hitzeschutz: Raumtemperatur hoch → Sonnenschutz
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ states(indoor_temp) | float(20) >= heat_indoor | float }}
+                sequence:
+                  - choose:
+                      # Fenster offen → nur bis Lüftungsposition
+                      - conditions:
+                          - condition: state
+                            entity_id: !input window_sensor
+                            state: "on"
+                        sequence:
+                          - service: cover.set_cover_position
+                            target:
+                              entity_id: !input cover_entity
+                            data:
+                              position: "{{ [sunscreen_pos | int, window_pos | int] | max }}"
+                    default:
+                      - service: cover.set_cover_position
+                        target:
+                          entity_id: !input cover_entity
+                        data:
+                          position: "{{ sunscreen_pos | int }}"
+
+      # ── Fenster geöffnet: Position begrenzen ──────────────────────────────
+      - conditions:
+          - condition: trigger
+            id: window_change
+          - condition: state
+            entity_id: !input window_sensor
+            state: "on"
+        sequence:
+          - condition: template
+            value_template: >
+              {{ state_attr(cover, 'current_position') | int(100) < window_pos | int }}
+          - service: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ window_pos | int }}"
+
+      # ── Terrassentür geöffnet: Nicht schließen (Aussperrschutz) ───────────
+      - conditions:
+          - condition: trigger
+            id: door_change
+          - condition: state
+            entity_id: !input door_sensor
+            state: "on"
+        sequence:
+          - service: cover.open_cover
+            target:
+              entity_id: !input cover_entity
+
+mode: single
+max_exceeded: silent
