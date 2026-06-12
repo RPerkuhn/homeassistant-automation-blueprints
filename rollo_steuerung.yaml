@@ -31,16 +31,18 @@ blueprint:
           device_class: temperature
 
     window_sensor:
-      name: Fenstersensor
-      description: Kontaktsensor am Fenster. Verhindert vollständiges Schließen bei geöffnetem Fenster.
+      name: Fenstersensor (optional)
+      description: Kontaktsensor am Fenster. Verhindert vollständiges Schließen bei geöffnetem Fenster. Kann leer gelassen werden.
+      default: {}
       selector:
         entity:
           domain: binary_sensor
           device_class: window
 
     door_sensor:
-      name: Terrassentürsensor
-      description: Kontaktsensor an der Terrassentür. Verhindert Schließen bei geöffneter Tür (Aussperrschutz).
+      name: Terrassentürsensor (optional)
+      description: Kontaktsensor an der Terrassentür. Verhindert Schließen bei geöffneter Tür (Aussperrschutz). Kann leer gelassen werden.
+      default: {}
       selector:
         entity:
           domain: binary_sensor
@@ -244,9 +246,9 @@ action:
       - conditions:
           - condition: trigger
             id: sunrise
-          - condition: state
-            entity_id: !input door_sensor
-            state: "off"  # Tür geschlossen
+          - condition: template
+            value_template: >
+              {{ door == {} or is_state(door, 'off') }}
         sequence:
           - service: cover.open_cover
             target:
@@ -256,9 +258,9 @@ action:
       - conditions:
           - condition: trigger
             id: sunset
-          - condition: state
-            entity_id: !input door_sensor
-            state: "off"  # Aussperrschutz
+          - condition: template
+            value_template: >
+              {{ door == {} or is_state(door, 'off') }}
         sequence:
           - choose:
               # Weihnachtsbeleuchtung aktiv → Verzögerung
@@ -287,9 +289,9 @@ action:
       - conditions:
           - condition: trigger
             id: sun_check
-          - condition: state
-            entity_id: !input door_sensor
-            state: "off"
+          - condition: template
+            value_template: >
+              {{ door == {} or is_state(door, 'off') }}
           - condition: template
             value_template: >
               {{ state_attr('sun.sun', 'elevation') | float(0) >= sun_elev_thresh | float }}
@@ -318,9 +320,9 @@ action:
                   - choose:
                       # Fenster offen → nur bis Lüftungsposition
                       - conditions:
-                          - condition: state
-                            entity_id: !input window_sensor
-                            state: "on"
+                          - condition: template
+                            value_template: >
+                              {{ window != {} and is_state(window, 'on') }}
                         sequence:
                           - service: cover.set_cover_position
                             target:
@@ -338,9 +340,9 @@ action:
       - conditions:
           - condition: trigger
             id: window_change
-          - condition: state
-            entity_id: !input window_sensor
-            state: "on"
+          - condition: template
+            value_template: >
+              {{ window != {} and is_state(window, 'on') }}
         sequence:
           - condition: template
             value_template: >
@@ -355,9 +357,9 @@ action:
       - conditions:
           - condition: trigger
             id: door_change
-          - condition: state
-            entity_id: !input door_sensor
-            state: "on"
+          - condition: template
+            value_template: >
+              {{ door != {} and is_state(door, 'on') }}
         sequence:
           - service: cover.open_cover
             target:
